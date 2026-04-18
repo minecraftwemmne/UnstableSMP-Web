@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>服务器状态 - Unstable SMP</title>
+    <link rel="icon" href="../ping/server-icon.png" type="image/png">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: #e0e0e0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #2d2d2d; padding: 2rem; border-radius: 12px; text-align: center; border-left: 5px solid #2ed573; width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .online-count { font-size: 2.5rem; color: #2ed573; font-weight: bold; margin: 10px 0; }
+        .motd { font-size: 0.85rem; color: #aaa; margin: 10px 0; font-style: italic; }
+        .player-area { margin-top: 20px; text-align: left; background: #1a1a1a; padding: 12px; border-radius: 8px; }
+        .player-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.9rem; }
+        .player-head { width: 24px; height: 24px; margin-right: 10px; border-radius: 3px; }
+        .back-link { color: #888; text-decoration: none; font-size: 0.85rem; margin-top: 20px; display: block; transition: 0.3s; }
+        .back-link:hover { color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Unstable SMP 状态</h2>
+        <div id="status-content">正在查询远程节点...</div>
+
+        <div id="player-area" style="display:none;">
+            <p style="font-size: 0.8rem; color: #666; margin-bottom: 8px;">当前在线玩家：</p>
+            <div id="player-list"></div>
+        </div>
+        
+        <a class="back-link">存在1-3分钟的误差,并非准确无误</a>
+        <a href="../index.html" class="back-link">← 返回主页</a>
+    </div>
+
+    <script>
+    // 换成 mcsrvstat v3 接口
+    fetch('https://api.mcsrvstat.us/3/unstablesmp.dpdns.org')
+        .then(res => res.json())
+        .then(data => {
+            const content = document.getElementById('status-content');
+            const playerArea = document.getElementById('player-area');
+            const playerList = document.getElementById('player-list');
+
+            // mcsrvstat 返回的是 data.online (布尔值)
+            if (data.online === true) {
+                // 【核心适配点】
+                // 1. 人数路径：data.players.online
+                // 2. MOTD 路径：data.motd.clean 是个数组，取第一行
+                const currentPlayers = data.players.online ?? 0;
+                const maxPlayers = data.players.max ?? 50;
+                const motdText = (data.motd && data.motd.clean) ? data.motd.clean[0] : "欢迎来到 Unstable SMP";
+
+                content.innerHTML = `
+                    <div class="online-count">${currentPlayers} / ${maxPlayers}</div>
+                    <div class="motd">${motdText}</div>
+                `;
+
+                // 3. 玩家列表路径：data.players.list
+                if (currentPlayers > 0 && data.players.list && data.players.list.length > 0) {
+                    playerArea.style.display = 'block';
+                    playerList.innerHTML = data.players.list.map(p => `
+                        <div class="player-item">
+                            <img class="player-head" src="https://mc-heads.net/avatar/${p.name}/24" alt="${p.name}">
+                            <span>${p.name}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    playerArea.style.display = 'none';
+                }
+            } else {
+                content.innerHTML = `<div style="color:#ff4757; font-size:2rem; font-weight:bold;">离线</div><p>API 节点暂未连接到服务器</p>`;
+            }
+        })
+        .catch(err => {
+            document.getElementById('status-content').innerHTML = "查询接口异常";
+            console.error("API请求错误:", err);
+        });
+    </script>
+</body>
+</html>
